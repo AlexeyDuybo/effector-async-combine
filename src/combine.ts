@@ -45,7 +45,7 @@ type StateKeys<S = NonNullable<CombineState<unknown>>> = S extends any
   : never;
 
 export type CombineConfig<SourceValue = unknown> = {
-  onError?: EventCallable<Error> | Effect<Error, any>;
+  onError?: EventCallable<unknown> | Effect<unknown, any>;
   sourceUpdateFilter?: (prev: SourceValue, next: SourceValue) => boolean;
 };
 

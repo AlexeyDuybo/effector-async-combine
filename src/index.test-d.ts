@@ -19,7 +19,7 @@ describe("asyncCombine types", () => {
     const state = combine.$state.getState();
 
     if (state?.isError) {
-      expectTypeOf(state.error).toEqualTypeOf<Error | undefined>();
+      expectTypeOf(state.error).toEqualTypeOf<unknown>();
       expectTypeOf(state.prevData).toEqualTypeOf<string | undefined>();
       expectTypeOf(state.isReady).toEqualTypeOf<false>();
       expectTypeOf(state.isPending).toEqualTypeOf<boolean>();
@@ -38,7 +38,7 @@ describe("asyncCombine types", () => {
     }
 
     if (state?.isPending && state.isError) {
-      expectTypeOf(state.error).toEqualTypeOf<Error | undefined>();
+      expectTypeOf(state.error).toEqualTypeOf<unknown>();
     }
   });
   it("func signature", () => {
@@ -121,7 +121,7 @@ describe("asyncCombine types", () => {
   it("config", () => {
     asyncCombine(createStore(1), async () => "", {
       onError: createEvent().prepend((e) => {
-        expectTypeOf(e).toEqualTypeOf<Error>();
+        expectTypeOf(e).toEqualTypeOf<unknown>();
         return;
       }),
       sourceUpdateFilter: (prev, next) => {
@@ -136,7 +136,7 @@ describe("asyncCombine types", () => {
     it("config", () => {
       fromConfiguration({
         onError: createEvent().prepend((e) => {
-          expectTypeOf(e).toEqualTypeOf<Error>();
+          expectTypeOf(e).toEqualTypeOf<unknown>();
           return;
         }),
         sourceUpdateFilter: (prev, next) => {

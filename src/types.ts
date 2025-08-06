@@ -39,7 +39,7 @@ export type CombineState<Data, Params = never> =
       isPending: true;
       isError: true;
       prevData?: Data;
-      error?: Error;
+      error?: unknown;
     } & IsNever<Params, unknown, { params?: Params }>)
   | ({
       isReady: false;
@@ -52,14 +52,14 @@ export type CombineState<Data, Params = never> =
       isPending: true;
       isError: true;
       prevData?: Data;
-      error?: Error;
+      error?: unknown;
     } & IsNever<Params, unknown, { params?: Params }>)
   | {
       isReady: false;
       isPending: false;
       isError: true;
       prevData?: Data;
-      error?: Error;
+      error?: unknown;
     };
 
 export type AsyncCombine<Data> = {
