@@ -29,12 +29,15 @@ export function fromConfiguration<
 } {
   return {
     asyncCombine: (source, fn, config) => {
-      return asyncCombine(source, fn as any, { ...configured, ...config });
+      return asyncCombine(
+        source, 
+        fn as any, 
+        { ...configured, ...config },
+        // @ts-expect-error
+        configured.extension
+      );
     },
     // @ts-expect-error
-    createExtension: () => {
-      // @ts-expect-error
-      return createExtension(configured.extension);
-    },
+    createExtension,
   };
 }

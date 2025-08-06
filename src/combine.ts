@@ -12,6 +12,7 @@ import {
 
 import {
   createExtensionFunc,
+  Extension,
   ExtensionConfig,
   ExtensionResult,
 } from "./extension";
@@ -106,10 +107,11 @@ type ExecuterParams = {
   extension?: ExtensionParams;
 };
 
-export const asyncCombine: AsyncCombineCreator<{}, {}, unknown> = (
+const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   sourceShape,
   fnOrExt,
   config = {},
+  ...[configuredExt]: Extension<any, any, any, any, any>[]
 ) => {
   const sourceUpdateFilter = (config.sourceUpdateFilter ??
     sourceUpdateFilterDeep) as (prev: unknown, next: unknown) => boolean;
@@ -214,13 +216,13 @@ export const asyncCombine: AsyncCombineCreator<{}, {}, unknown> = (
     { skipVoid: false },
   );
 
-  const initedExtOrFunc =
-    typeof fnOrExt === "function"
-      ? { type: "func" as const, fn: fnOrExt }
-      : {
-          type: "ext" as const,
-          ext: initExtensions(trigger, executerFx, $state, fnOrExt),
-        };
+  const initedExtOrFunc = initExtensions(
+    trigger,
+    executerFx,
+    $state,
+    fnOrExt,
+    configuredExt,
+  );
 
   sample({
     clock: [
@@ -523,13 +525,43 @@ const initExtensions = (
   trigger: EventCallable<{ _extension: ExtensionParams } | void>,
   executerFx: Effect<ExecuterParams, unknown>,
   $state: Store<CombineState<unknown>>,
-  ext: ExtensionResult<SourceShape, unknown, {}, {}, {}>,
-): {
-  originalFn: CombineFunc<SourceShape, unknown, unknown>;
-  extend: Record<string, unknown>;
-  configs: ExtensionConfig<unknown, unknown, unknown, unknown, unknown>[];
+  fnOrExt: CombineFuncOrExtension<any, any, {}, any, {}>,
+  configuredExt?: Extension<any, any, any, any, any>,
+): 
+| {
+  type: 'func',
+  fn: CombineFunc<SourceShape, unknown, ContextShape<SourceShape>>
+} 
+| {
+  type: 'ext',
+  ext: {
+    originalFn: CombineFunc<SourceShape, unknown, ContextShape<SourceShape>>;
+    extend: Record<string, unknown>;
+    configs: ExtensionConfig<unknown, unknown, unknown, unknown, unknown>[];
+  }
 } => {
-  const extConfigs = ext.__.configFactories.map(
+  if (!configuredExt && typeof fnOrExt === 'function') return {
+    type: 'func',
+    fn: fnOrExt,
+  };
+
+  const originalFn = typeof fnOrExt === 'function'
+    ? fnOrExt
+    : fnOrExt.__.fn;
+
+  const configFactories = [
+    ...typeof fnOrExt === 'function' 
+      ? []
+      : fnOrExt.__.configFactories
+  ];
+
+  if (configuredExt) {
+    configFactories.unshift(
+      ...(configuredExt(originalFn).__.configFactories)
+    )
+  }
+
+  const extConfigs = configFactories.map(
     (configFactory, extensionIndex) => {
       const $stateWithParams = createStore($state.defaultState, {
         skipVoid: false,
@@ -575,5 +607,10 @@ const initExtensions = (
     {},
   );
 
-  return { extend, configs: extConfigs, originalFn: ext.__.fn };
+  return {
+    type: 'ext',
+    ext: { extend, configs: extConfigs, originalFn }
+  };
 };
+
+export const asyncCombine: AsyncCombineCreator<{}, {}, unknown> = asyncCombineInternal;

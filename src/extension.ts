@@ -170,18 +170,10 @@ export type Extension<
   >);
 
 // @ts-expect-error
-export const createExtension: ExtensionCreator<{}, {}, unknown> = (
-  configuredExtension?: Extension<any, any, any, any, any>,
-) => {
+export const createExtension: ExtensionCreator<{}, {}, unknown> = () => {
   return (configFactory) => {
     const ext = (fn: CombineFunc<SourceShape, unknown, ContextShape>) => {
       const configFactories = [configFactory];
-
-      if (configuredExtension) {
-        configFactories.unshift(
-          ...(configuredExtension(fn).__.configFactories as any[]),
-        );
-      }
 
       const extResult: ExtensionResult<any, any, any, any, any> = {
         // @ts-expect-error

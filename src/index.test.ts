@@ -2065,4 +2065,77 @@ describe("asyncCombine", () => {
       );
     });
   });
+  it("from configuration", async () => {
+      const scope = fork();
+      let trigger: EventCallable<number> | undefined;
+      const stateSpy = vitest.fn();
+      const contextSpy = vitest.fn();
+      const paramsSpy = vitest.fn();
+      const ext = createExtension<{
+        context: { bar: string };
+        params: number;
+      }>()((params) => {
+        createWatch({ scope, unit: params.$state, fn: stateSpy });
+        trigger = params.trigger;
+        return {
+          extend: {
+            foo: 123,
+          },
+          handler: (orig, context, params) => {
+            paramsSpy(params);
+            return orig({ bar: "foo" });
+          },
+        };
+      });
+      const config = fromConfiguration({ extension: ext });
+
+      const combine = config.asyncCombine(
+        createStore(1),
+        (_, context) => {
+          contextSpy(context);
+          return "";
+        },
+      );
+
+      expect(combine.foo).toEqual(123);
+      expect(stateSpy).toHaveBeenCalledTimes(0);
+      expect(contextSpy).toHaveBeenCalledTimes(0);
+
+      await allSettled(combine.trigger, { scope });
+
+      expect(stateSpy).toHaveBeenCalledTimes(2);
+      expect(stateSpy).nthCalledWith(1, createState({ isPending: true }));
+      expect(stateSpy).nthCalledWith(
+        2,
+        createState({ isReady: true, data: "" }),
+      );
+
+      expect(contextSpy).toHaveBeenCalledTimes(1);
+      expect(contextSpy).nthCalledWith(
+        1,
+        expect.objectContaining({ bar: "foo" }),
+      );
+
+      expect(paramsSpy).nthCalledWith(1, undefined);
+
+      await allSettled(trigger!, { scope, params: 123 });
+
+      expect(stateSpy).toHaveBeenCalledTimes(4);
+      expect(stateSpy).nthCalledWith(
+        3,
+        createState({ isPending: true, prevData: "", params: 123 }),
+      );
+      expect(stateSpy).nthCalledWith(
+        4,
+        createState({ isReady: true, data: "" }),
+      );
+
+      expect(contextSpy).toHaveBeenCalledTimes(2);
+      expect(contextSpy).nthCalledWith(
+        2,
+        expect.objectContaining({ bar: "foo" }),
+      );
+
+      expect(paramsSpy).nthCalledWith(2, 123);
+    });
 });
