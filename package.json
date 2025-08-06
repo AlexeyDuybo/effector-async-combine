@@ -1,6 +1,6 @@
 {
   "name": "effector-async-combine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Async combine for effector",
   "type": "module",
   "main": "dist/index.cjs",
