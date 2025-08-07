@@ -398,6 +398,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   } = {
     ...(initedExtOrFunc.type === "ext" && initedExtOrFunc.ext.extend),
     $state,
+    $data: $prevData,
     $isError: $state.map((state) => state?.isError || false),
     $isPending: $state.map((state) => state?.isPending || false),
 

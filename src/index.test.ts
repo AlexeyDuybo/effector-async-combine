@@ -140,6 +140,7 @@ describe("asyncCombine", () => {
     const prevSourceSpy = vitest.fn();
     const prevDataSpy = vitest.fn();
     const stateSpy = vitest.fn();
+    const dataSpy = vitest.fn();
     const combine = asyncCombine(
       $source,
       async (source, { prevSource }, prevData) => {
@@ -151,11 +152,13 @@ describe("asyncCombine", () => {
       },
     );
     createWatch({ scope, unit: combine.$state, fn: stateSpy });
+    createWatch({ scope, unit: combine.$data, fn: dataSpy });
 
     expect(stateSpy).not.toHaveBeenCalled();
     expect(prevSourceSpy).not.toHaveBeenCalled();
     expect(prevDataSpy).not.toHaveBeenCalled();
     expect(sourceSpy).not.toHaveBeenCalled();
+    expect(dataSpy).not.toHaveBeenCalled();
 
     result.mockRejectedValueOnce(undefined);
     await allSettled($source, { scope, params: 1 });
@@ -163,6 +166,7 @@ describe("asyncCombine", () => {
     expect(stateSpy).toHaveBeenCalledTimes(2);
     expect(stateSpy).nthCalledWith(1, createState({ isPending: true }));
     expect(stateSpy).nthCalledWith(2, createState(undefined));
+    expect(dataSpy).toHaveBeenCalledTimes(0);
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(1);
     expect(prevSourceSpy).nthCalledWith(1, undefined);
@@ -182,6 +186,7 @@ describe("asyncCombine", () => {
       4,
       createState({ isError: true, error: new Error("foo") }),
     );
+    expect(dataSpy).toHaveBeenCalledTimes(0);
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(2);
     expect(prevSourceSpy).nthCalledWith(2, 1);
@@ -205,6 +210,9 @@ describe("asyncCombine", () => {
       createState({ isReady: true, data: "foo" }),
     );
 
+    expect(dataSpy).toHaveBeenCalledTimes(1);
+    expect(dataSpy).nthCalledWith(1, 'foo')
+
     expect(prevSourceSpy).toHaveBeenCalledTimes(3);
     expect(prevSourceSpy).nthCalledWith(3, 1);
 
@@ -226,6 +234,9 @@ describe("asyncCombine", () => {
       8,
       createState({ isError: true, error: new Error("bar"), prevData: "foo" }),
     );
+
+    expect(dataSpy).toHaveBeenCalledTimes(1);
+    expect(dataSpy).nthCalledWith(1, 'foo')
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(4);
     expect(prevSourceSpy).nthCalledWith(4, 3);
@@ -254,6 +265,9 @@ describe("asyncCombine", () => {
       createState({ isReady: true, data: "baz" }),
     );
 
+    expect(dataSpy).toHaveBeenCalledTimes(2);
+    expect(dataSpy).nthCalledWith(2, 'baz')
+
     expect(prevSourceSpy).toHaveBeenCalledTimes(5);
     expect(prevSourceSpy).nthCalledWith(5, 3);
 
@@ -275,6 +289,9 @@ describe("asyncCombine", () => {
       12,
       createState({ isReady: true, data: "baz" }),
     );
+
+    expect(dataSpy).toHaveBeenCalledTimes(2);
+    expect(dataSpy).nthCalledWith(2, 'baz')
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(6);
     expect(prevSourceSpy).nthCalledWith(6, 5);
@@ -305,6 +322,9 @@ describe("asyncCombine", () => {
       createState({ isError: true, prevData: "baz", error: new Error("bar") }),
     );
 
+    expect(dataSpy).toHaveBeenCalledTimes(2);
+    expect(dataSpy).nthCalledWith(2, 'baz')
+
     expect(prevSourceSpy).toHaveBeenCalledTimes(8);
     expect(prevSourceSpy).nthCalledWith(8, 5);
 
@@ -320,6 +340,9 @@ describe("asyncCombine", () => {
       17,
       createState({ isReady: true, data: "foo" }),
     );
+
+    expect(dataSpy).toHaveBeenCalledTimes(3);
+    expect(dataSpy).nthCalledWith(3, 'foo')
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(8);
     expect(prevDataSpy).toHaveBeenCalledTimes(8);
@@ -340,6 +363,9 @@ describe("asyncCombine", () => {
       createState({ isReady: true, data: "bar" }),
     );
 
+    expect(dataSpy).toHaveBeenCalledTimes(4);
+    expect(dataSpy).nthCalledWith(4, 'bar')
+
     expect(prevSourceSpy).toHaveBeenCalledTimes(9);
     expect(prevSourceSpy).nthCalledWith(9, undefined);
 
@@ -348,6 +374,38 @@ describe("asyncCombine", () => {
 
     expect(sourceSpy).toHaveBeenCalledTimes(9);
     expect(sourceSpy).nthCalledWith(9, "bar");
+
+    result.mockRejectedValueOnce(undefined);
+    await allSettled(combine.trigger, { scope });
+
+    result.mockReturnValueOnce(123);
+    await allSettled(combine.trigger, { scope });
+
+    expect(stateSpy).toHaveBeenCalledTimes(23);
+    expect(stateSpy).nthCalledWith(
+      22,
+      createState({ isPending: true }),
+    );
+    expect(stateSpy).nthCalledWith(
+      23,
+      createState({ isReady: true, data: 123 }),
+    );
+
+    expect(dataSpy).toHaveBeenCalledTimes(6);
+    expect(dataSpy).nthCalledWith(5, undefined)
+    expect(dataSpy).nthCalledWith(6, 123)
+
+    expect(prevSourceSpy).toHaveBeenCalledTimes(11);
+    expect(prevSourceSpy).nthCalledWith(11, 'bar');
+
+    expect(prevDataSpy).toHaveBeenCalledTimes(11);
+    expect(prevDataSpy).nthCalledWith(10, 'bar');
+    expect(prevDataSpy).nthCalledWith(11, undefined);
+
+    expect(sourceSpy).toHaveBeenCalledTimes(11);
+    expect(sourceSpy).nthCalledWith(10, "bar");
+    expect(sourceSpy).nthCalledWith(11, "bar");
+
   });
   it("pending state", async () => {
     const $someStore = createStore("jj");

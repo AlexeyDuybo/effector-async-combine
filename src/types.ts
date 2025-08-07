@@ -64,6 +64,7 @@ export type CombineState<Data, Params = never> =
 
 export type AsyncCombine<Data> = {
   $state: Store<CombineState<Data>>;
+  $data: Store<Data | undefined>;
   $isError: Store<boolean>;
   $isPending: Store<boolean>;
   changeData: EventCallable<Data>;
