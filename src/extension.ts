@@ -207,7 +207,7 @@ const getNextExtFunc = (
     };
     if (!extConfig)
       return createExtensionData(
-        originalFunc(
+        await originalFunc(
           source,
           { ...extendedContxt, ...contextAcc },
           baseContext.prevData,
