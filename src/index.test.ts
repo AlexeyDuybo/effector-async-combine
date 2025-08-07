@@ -189,7 +189,7 @@ describe("asyncCombine", () => {
     expect(dataSpy).toHaveBeenCalledTimes(0);
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(2);
-    expect(prevSourceSpy).nthCalledWith(2, 1);
+    expect(prevSourceSpy).nthCalledWith(2, undefined);
 
     expect(prevDataSpy).toHaveBeenCalledTimes(2);
     expect(prevDataSpy).nthCalledWith(2, undefined);
@@ -214,7 +214,7 @@ describe("asyncCombine", () => {
     expect(dataSpy).nthCalledWith(1, 'foo')
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(3);
-    expect(prevSourceSpy).nthCalledWith(3, 1);
+    expect(prevSourceSpy).nthCalledWith(3, undefined);
 
     expect(prevDataSpy).toHaveBeenCalledTimes(3);
     expect(prevDataSpy).nthCalledWith(3, undefined);
@@ -396,7 +396,7 @@ describe("asyncCombine", () => {
     expect(dataSpy).nthCalledWith(6, 123)
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(11);
-    expect(prevSourceSpy).nthCalledWith(11, 'bar');
+    expect(prevSourceSpy).nthCalledWith(11, undefined);
 
     expect(prevDataSpy).toHaveBeenCalledTimes(11);
     expect(prevDataSpy).nthCalledWith(10, 'bar');
@@ -1046,7 +1046,7 @@ describe("asyncCombine", () => {
       expect(sourceSpy).nthCalledWith(5, "barfoo");
 
       expect(prevSourceSpy).toHaveBeenCalledTimes(5);
-      expect(prevSourceSpy).nthCalledWith(5, "barfoo");
+      expect(prevSourceSpy).nthCalledWith(5, undefined);
 
       expect(prevDataSpy).toHaveBeenCalledTimes(5);
       expect(prevDataSpy).nthCalledWith(5, undefined);
@@ -1318,7 +1318,7 @@ describe("asyncCombine", () => {
       expect(sourceSpy).nthCalledWith(5, getSourceValue("barfoo"));
 
       expect(prevSourceSpy).toHaveBeenCalledTimes(5);
-      expect(prevSourceSpy).nthCalledWith(5, getSourceValue("barfoo"));
+      expect(prevSourceSpy).nthCalledWith(5, undefined);
 
       expect(prevDataSpy).toHaveBeenCalledTimes(5);
       expect(prevDataSpy).nthCalledWith(5, undefined);

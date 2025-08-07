@@ -348,7 +348,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
 
   sample({
     clock: executerFx.done,
-    fn: ({ params: { source } }) => source,
+    fn: ({ params: { source }, result }) => result === resetSymbol ? undefined : source,
     target: $prevSource,
   });
 
