@@ -288,7 +288,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
             error instanceof CombineError ? error : new CombineError(error);
 
           if (!combineError.logged) {
-            // console.error(combineError.cause);
+            console.error(combineError.cause);
             combineError.logged = true;
           }
 
