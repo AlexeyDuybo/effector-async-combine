@@ -14,6 +14,11 @@ export type SourceShape =
 
 export type RemoveDollarPrefix<Name extends string> =
   Name extends `$${infer ValueName}` ? ValueName : Name;
+type RemoveAsyncPostfix<Name extends string> =
+  Name extends `${infer ValueName}Async` ? ValueName : Name;
+type PrepareName<Name extends string> = RemoveDollarPrefix<
+  RemoveAsyncPostfix<Name>
+>;
 
 export type GetSourceValue<Source extends SourceShape> =
   Source extends Store<infer Value>
@@ -22,9 +27,7 @@ export type GetSourceValue<Source extends SourceShape> =
       ? Value
       : {
           [K in keyof Source &
-            string as RemoveDollarPrefix<K>]: Source[K] extends Store<
-            infer Value
-          >
+            string as PrepareName<K>]: Source[K] extends Store<infer Value>
             ? Value
             : Source[K] extends AsyncCombine<infer Value>
               ? Value
@@ -39,7 +42,7 @@ export type CombineState<Data, Params = never> =
       isPending: true;
       isError: true;
       prevData?: Data;
-      error?: unknown;
+      error: unknown;
     } & IsNever<Params, unknown, { params?: Params }>)
   | ({
       isReady: false;
@@ -52,14 +55,14 @@ export type CombineState<Data, Params = never> =
       isPending: true;
       isError: true;
       prevData?: Data;
-      error?: unknown;
+      error: unknown;
     } & IsNever<Params, unknown, { params?: Params }>)
   | {
       isReady: false;
       isPending: false;
       isError: true;
       prevData?: Data;
-      error?: unknown;
+      error: unknown;
     };
 
 export type AsyncCombine<Data> = {

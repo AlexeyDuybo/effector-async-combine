@@ -30,11 +30,11 @@ export function fromConfiguration<
   return {
     asyncCombine: (source, fn, config) => {
       return asyncCombine(
-        source, 
-        fn as any, 
+        source,
+        fn as any,
         { ...configured, ...config },
         // @ts-expect-error
-        configured.extension
+        configured.extension,
       );
     },
     // @ts-expect-error

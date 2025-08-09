@@ -2,7 +2,8 @@ import { createEvent, createStore } from "effector";
 import { describe, it } from "vitest";
 import { expectTypeOf } from "vitest";
 
-import { asyncCombine, AsyncCombineCreator } from "./combine";
+import { asyncCombine } from "./index";
+import type { AsyncCombineCreator } from "./combine";
 import { composeExtensions } from "./compose";
 import {
   createExtension,

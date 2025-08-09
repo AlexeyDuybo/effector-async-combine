@@ -7,12 +7,13 @@ import {
   fork,
 } from "effector";
 import { describe, expect, it, vitest } from "vitest";
-
-import { asyncCombine } from "./combine";
+import {
+  asyncCombine,
+  createExtension,
+  composeExtensions,
+  fromConfiguration,
+} from "./";
 import { CombineState } from "./types";
-import { createExtension } from "./extension";
-import { composeExtensions } from "./compose";
-import { fromConfiguration } from "./from-configuration";
 
 const sleepFx = createEffect(async () => null);
 const sleep = async () => {
@@ -211,7 +212,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(1);
-    expect(dataSpy).nthCalledWith(1, 'foo')
+    expect(dataSpy).nthCalledWith(1, "foo");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(3);
     expect(prevSourceSpy).nthCalledWith(3, undefined);
@@ -236,7 +237,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(1);
-    expect(dataSpy).nthCalledWith(1, 'foo')
+    expect(dataSpy).nthCalledWith(1, "foo");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(4);
     expect(prevSourceSpy).nthCalledWith(4, 3);
@@ -266,7 +267,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(2);
-    expect(dataSpy).nthCalledWith(2, 'baz')
+    expect(dataSpy).nthCalledWith(2, "baz");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(5);
     expect(prevSourceSpy).nthCalledWith(5, 3);
@@ -291,7 +292,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(2);
-    expect(dataSpy).nthCalledWith(2, 'baz')
+    expect(dataSpy).nthCalledWith(2, "baz");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(6);
     expect(prevSourceSpy).nthCalledWith(6, 5);
@@ -323,7 +324,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(2);
-    expect(dataSpy).nthCalledWith(2, 'baz')
+    expect(dataSpy).nthCalledWith(2, "baz");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(8);
     expect(prevSourceSpy).nthCalledWith(8, 5);
@@ -342,7 +343,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(3);
-    expect(dataSpy).nthCalledWith(3, 'foo')
+    expect(dataSpy).nthCalledWith(3, "foo");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(8);
     expect(prevDataSpy).toHaveBeenCalledTimes(8);
@@ -364,7 +365,7 @@ describe("asyncCombine", () => {
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(4);
-    expect(dataSpy).nthCalledWith(4, 'bar')
+    expect(dataSpy).nthCalledWith(4, "bar");
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(9);
     expect(prevSourceSpy).nthCalledWith(9, undefined);
@@ -382,30 +383,26 @@ describe("asyncCombine", () => {
     await allSettled(combine.trigger, { scope });
 
     expect(stateSpy).toHaveBeenCalledTimes(23);
-    expect(stateSpy).nthCalledWith(
-      22,
-      createState({ isPending: true }),
-    );
+    expect(stateSpy).nthCalledWith(22, createState({ isPending: true }));
     expect(stateSpy).nthCalledWith(
       23,
       createState({ isReady: true, data: 123 }),
     );
 
     expect(dataSpy).toHaveBeenCalledTimes(6);
-    expect(dataSpy).nthCalledWith(5, undefined)
-    expect(dataSpy).nthCalledWith(6, 123)
+    expect(dataSpy).nthCalledWith(5, undefined);
+    expect(dataSpy).nthCalledWith(6, 123);
 
     expect(prevSourceSpy).toHaveBeenCalledTimes(11);
     expect(prevSourceSpy).nthCalledWith(11, undefined);
 
     expect(prevDataSpy).toHaveBeenCalledTimes(11);
-    expect(prevDataSpy).nthCalledWith(10, 'bar');
+    expect(prevDataSpy).nthCalledWith(10, "bar");
     expect(prevDataSpy).nthCalledWith(11, undefined);
 
     expect(sourceSpy).toHaveBeenCalledTimes(11);
     expect(sourceSpy).nthCalledWith(10, "bar");
     expect(sourceSpy).nthCalledWith(11, "bar");
-
   });
   it("pending state", async () => {
     const $someStore = createStore("jj");
@@ -501,7 +498,7 @@ describe("asyncCombine", () => {
     await allSettled($someStore, { scope, params: "2" });
 
     const pending = allSettled($someStore, { scope, params: "3" });
-    await Promise.resolve().then();
+    await sleep();
 
     expect(scope.getState(combine.$isPending)).toEqual(true);
     expect(scope.getState(combine.$state)).toEqual(
@@ -528,27 +525,105 @@ describe("asyncCombine", () => {
       }),
     );
   });
-  it("source deep equality", async () => {
-    const scope = fork();
-    const $source = createStore({ foo: { bar: 321 } });
-    const stateSpy = vitest.fn();
-    const callSpy = vitest.fn();
-    const sourceCombine = asyncCombine(createStore(1), () => {
-      return { foo: 123 };
-    });
-    const combine = asyncCombine({ $source, sourceCombine }, () => {
-      callSpy();
-      return 1;
-    });
-    await allSettled(sourceCombine.trigger, { scope });
-    createWatch({ scope, unit: combine.$state, fn: stateSpy });
+  describe("source deep equality", () => {
+    it("single store source", async () => {
+      const scope = fork();
+      const $source = createStore({ foo: { bar: 321 } });
+      const stateSpy = vitest.fn();
+      const callSpy = vitest.fn();
+      const combine = asyncCombine($source, () => {
+        callSpy();
+        return 1;
+      });
+      await allSettled(combine.trigger, { scope });
+      createWatch({ scope, unit: combine.$state, fn: stateSpy });
 
-    await allSettled(sourceCombine.changeData, { scope, params: { foo: 123 } });
-    await allSettled($source, { scope, params: { foo: { bar: 321 } } });
-    await allSettled(sourceCombine.changeData, { scope, params: { foo: 123 } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
 
-    expect(stateSpy).not.toHaveBeenCalled();
-    expect(callSpy).toHaveBeenCalledTimes(1);
+      expect(stateSpy).not.toHaveBeenCalled();
+      expect(callSpy).toHaveBeenCalledTimes(1);
+    });
+    it("single combine source", async () => {
+      const scope = fork();
+      const stateSpy = vitest.fn();
+      const callSpy = vitest.fn();
+      const sourceCombine = asyncCombine(createStore(1), () => {
+        return { foo: 123 };
+      });
+      const combine = asyncCombine(sourceCombine, () => {
+        callSpy();
+        return 1;
+      });
+      await allSettled(sourceCombine.trigger, { scope });
+      createWatch({ scope, unit: combine.$state, fn: stateSpy });
+
+      await allSettled(sourceCombine.changeData, {
+        scope,
+        params: { foo: 123 },
+      });
+      await allSettled(sourceCombine.changeData, {
+        scope,
+        params: { foo: 123 },
+      });
+      await allSettled(sourceCombine.changeData, {
+        scope,
+        params: { foo: 123 },
+      });
+
+      expect(stateSpy).toHaveBeenCalledTimes(0);
+      expect(callSpy).toHaveBeenCalledTimes(1);
+    });
+    it("object store source", async () => {
+      const scope = fork();
+      const $source = createStore({ foo: { bar: 321 } });
+      const stateSpy = vitest.fn();
+      const callSpy = vitest.fn();
+      const combine = asyncCombine({ $source }, () => {
+        callSpy();
+        return 1;
+      });
+      await allSettled(combine.trigger, { scope });
+      createWatch({ scope, unit: combine.$state, fn: stateSpy });
+
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+
+      expect(stateSpy).not.toHaveBeenCalled();
+      expect(callSpy).toHaveBeenCalledTimes(1);
+    });
+    it("object store and combine", async () => {
+      const scope = fork();
+      const $source = createStore({ foo: { bar: 321 } });
+      const stateSpy = vitest.fn();
+      const callSpy = vitest.fn();
+      const sourceCombine = asyncCombine(createStore(1), () => {
+        return { foo: 123 };
+      });
+      const combine = asyncCombine({ $source, sourceCombine }, () => {
+        callSpy();
+        return 1;
+      });
+      await allSettled(sourceCombine.trigger, { scope });
+      createWatch({ scope, unit: combine.$state, fn: stateSpy });
+
+      await allSettled(sourceCombine.changeData, {
+        scope,
+        params: { foo: 123 },
+      });
+      await allSettled($source, { scope, params: { foo: { bar: 321 } } });
+      await allSettled(sourceCombine.changeData, {
+        scope,
+        params: { foo: 123 },
+      });
+
+      expect(stateSpy).toHaveBeenCalledTimes(6);
+      expect(callSpy).toHaveBeenCalledTimes(1);
+    });
   });
   describe("concurrent", () => {
     it("stores only latest result", async () => {
@@ -562,8 +637,8 @@ describe("asyncCombine", () => {
 
       allSettled($someStore, { scope, params: "1" });
       await sleep();
-      const pending = allSettled($someStore, { scope, params: "2" });
       await sleep();
+      const pending = allSettled($someStore, { scope, params: "2" });
       p.resolve("bar");
       await pending;
 
@@ -584,6 +659,7 @@ describe("asyncCombine", () => {
       const combine = asyncCombine($someStore, handler);
 
       allSettled($someStore, { scope, params: "1" });
+      await sleep();
       await sleep();
       const pending = allSettled($someStore, { scope, params: "2" });
       await sleep();
@@ -609,6 +685,7 @@ describe("asyncCombine", () => {
 
       allSettled($someStore, { scope, params: "1" });
       await sleep();
+      await sleep();
       const pending = allSettled($someStore, { scope, params: "2" });
       await sleep();
       p.reject("bar");
@@ -633,6 +710,7 @@ describe("asyncCombine", () => {
 
       const pending = allSettled($someStore, { scope, params: "foo" });
       await sleep();
+      await sleep();
       expect(signal!.aborted).toBe(false);
 
       p.resolve();
@@ -650,6 +728,7 @@ describe("asyncCombine", () => {
       });
 
       const pending = allSettled($someStore, { scope, params: "foo" });
+      await sleep();
       await sleep();
       expect(signal!.aborted).toBe(false);
 
@@ -674,6 +753,7 @@ describe("asyncCombine", () => {
 
       allSettled($someStore, { scope, params: "foo" });
       await sleep();
+      await sleep();
       expect(signal!.aborted).toBe(false);
       const pending = allSettled($someStore, { scope, params: "bar" });
       await sleep();
@@ -691,6 +771,7 @@ describe("asyncCombine", () => {
       const combine = asyncCombine($someStore, handler);
 
       allSettled($someStore, { scope, params: "1" });
+      await sleep();
       await sleep();
       const pending = allSettled(combine.trigger, { scope });
       await sleep();
@@ -720,6 +801,7 @@ describe("asyncCombine", () => {
       });
 
       allSettled($someStore, { scope, params: "foo" });
+      await sleep();
       await sleep();
       expect(signal!.aborted).toBe(false);
       const pending = allSettled(combine.trigger, { scope });
@@ -921,7 +1003,10 @@ describe("asyncCombine", () => {
 
       expect(stateSpy).toHaveBeenCalledTimes(4);
       expect(stateSpy).nthCalledWith(3, createState({ isPending: true }));
-      expect(stateSpy).nthCalledWith(4, createState({ isError: true }));
+      expect(stateSpy).nthCalledWith(
+        4,
+        createState({ isError: true, error: new Error("foo") }),
+      );
 
       expect(sourceSpy).toHaveBeenCalledTimes(0);
       expect(prevSourceSpy).toHaveBeenCalledTimes(0);
@@ -934,7 +1019,11 @@ describe("asyncCombine", () => {
       expect(stateSpy).toHaveBeenCalledTimes(6);
       expect(stateSpy).nthCalledWith(
         5,
-        createState({ isPending: true, isError: true }),
+        createState({
+          isPending: true,
+          isError: true,
+          error: new Error("foo"),
+        }),
       );
       expect(stateSpy).nthCalledWith(
         6,
@@ -960,7 +1049,7 @@ describe("asyncCombine", () => {
       );
       expect(stateSpy).nthCalledWith(
         8,
-        createState({ isError: true, prevData: 1 }),
+        createState({ isError: true, prevData: 1, error: new Error("foo") }),
       );
 
       expect(sourceSpy).toHaveBeenCalledTimes(1);
@@ -974,7 +1063,12 @@ describe("asyncCombine", () => {
       expect(stateSpy).toHaveBeenCalledTimes(10);
       expect(stateSpy).nthCalledWith(
         9,
-        createState({ isPending: true, isError: true, prevData: 1 }),
+        createState({
+          isPending: true,
+          isError: true,
+          prevData: 1,
+          error: new Error("foo"),
+        }),
       );
       expect(stateSpy).nthCalledWith(
         10,
@@ -1099,7 +1193,7 @@ describe("asyncCombine", () => {
       );
       expect(stateSpy).nthCalledWith(
         22,
-        createState({ isError: true, prevData: 200 }),
+        createState({ isError: true, prevData: 200, error: new Error("baz") }),
       );
 
       await allSettled(combine.trigger, { scope });
@@ -1193,7 +1287,10 @@ describe("asyncCombine", () => {
 
       expect(stateSpy).toHaveBeenCalledTimes(4);
       expect(stateSpy).nthCalledWith(3, createState({ isPending: true }));
-      expect(stateSpy).nthCalledWith(4, createState({ isError: true }));
+      expect(stateSpy).nthCalledWith(
+        4,
+        createState({ isError: true, error: new Error("foo") }),
+      );
 
       expect(sourceSpy).toHaveBeenCalledTimes(0);
       expect(prevSourceSpy).toHaveBeenCalledTimes(0);
@@ -1206,7 +1303,11 @@ describe("asyncCombine", () => {
       expect(stateSpy).toHaveBeenCalledTimes(6);
       expect(stateSpy).nthCalledWith(
         5,
-        createState({ isPending: true, isError: true }),
+        createState({
+          isPending: true,
+          isError: true,
+          error: new Error("foo"),
+        }),
       );
       expect(stateSpy).nthCalledWith(
         6,
@@ -1232,7 +1333,7 @@ describe("asyncCombine", () => {
       );
       expect(stateSpy).nthCalledWith(
         8,
-        createState({ isError: true, prevData: 1 }),
+        createState({ isError: true, prevData: 1, error: new Error("foo") }),
       );
 
       expect(sourceSpy).toHaveBeenCalledTimes(1);
@@ -1246,7 +1347,12 @@ describe("asyncCombine", () => {
       expect(stateSpy).toHaveBeenCalledTimes(10);
       expect(stateSpy).nthCalledWith(
         9,
-        createState({ isPending: true, isError: true, prevData: 1 }),
+        createState({
+          isPending: true,
+          isError: true,
+          prevData: 1,
+          error: new Error("foo"),
+        }),
       );
       expect(stateSpy).nthCalledWith(
         10,
@@ -1371,18 +1477,18 @@ describe("asyncCombine", () => {
       );
       expect(stateSpy).nthCalledWith(
         22,
-        createState({ isError: true, prevData: 200 }),
+        createState({ isError: true, prevData: 200, error: new Error("baz") }),
       );
 
       await allSettled(combine.trigger, { scope });
 
-      expect(stateSpy).toHaveBeenCalledTimes(22);
+      expect(stateSpy).toHaveBeenCalledTimes(24);
 
       await allSettled(combine.changeData, { scope, params: 300 });
 
-      expect(stateSpy).toHaveBeenCalledTimes(23);
+      expect(stateSpy).toHaveBeenCalledTimes(25);
       expect(stateSpy).nthCalledWith(
-        23,
+        25,
         createState({ isReady: true, data: 300 }),
       );
 
@@ -1396,21 +1502,21 @@ describe("asyncCombine", () => {
       await allSettled(sourceCombine.trigger, { scope });
       await allSettled($source, { scope, params: 3000 });
 
-      expect(stateSpy).toHaveBeenCalledTimes(27);
-      expect(stateSpy).nthCalledWith(
-        24,
-        createState({ isPending: true, isError: true, prevData: 300 }),
-      );
-      expect(stateSpy).nthCalledWith(
-        25,
-        createState({ isReady: true, data: 1000 }),
-      );
+      expect(stateSpy).toHaveBeenCalledTimes(29);
       expect(stateSpy).nthCalledWith(
         26,
-        createState({ isPending: true, prevData: 1000 }),
+        createState({ isPending: true, isError: false, prevData: 300 }),
       );
       expect(stateSpy).nthCalledWith(
         27,
+        createState({ isReady: true, data: 1000 }),
+      );
+      expect(stateSpy).nthCalledWith(
+        28,
+        createState({ isPending: true, prevData: 1000 }),
+      );
+      expect(stateSpy).nthCalledWith(
+        29,
         createState({ isReady: true, data: 2000 }),
       );
 
@@ -2124,76 +2230,157 @@ describe("asyncCombine", () => {
     });
   });
   it("from configuration", async () => {
-      const scope = fork();
-      let trigger: EventCallable<number> | undefined;
-      const stateSpy = vitest.fn();
-      const contextSpy = vitest.fn();
-      const paramsSpy = vitest.fn();
-      const ext = createExtension<{
-        context: { bar: string };
-        params: number;
-      }>()((params) => {
-        createWatch({ scope, unit: params.$state, fn: stateSpy });
-        trigger = params.trigger;
-        return {
-          extend: {
-            foo: 123,
-          },
-          handler: (orig, context, params) => {
-            paramsSpy(params);
-            return orig({ bar: "foo" });
-          },
-        };
-      });
-      const config = fromConfiguration({ extension: ext });
-
-      const combine = config.asyncCombine(
-        createStore(1),
-        (_, context) => {
-          contextSpy(context);
-          return "";
+    const scope = fork();
+    let trigger: EventCallable<number> | undefined;
+    const stateSpy = vitest.fn();
+    const contextSpy = vitest.fn();
+    const paramsSpy = vitest.fn();
+    const ext = createExtension<{
+      context: { bar: string };
+      params: number;
+    }>()((params) => {
+      createWatch({ scope, unit: params.$state, fn: stateSpy });
+      trigger = params.trigger;
+      return {
+        extend: {
+          foo: 123,
         },
-      );
+        handler: (orig, context, params) => {
+          paramsSpy(params);
+          return orig({ bar: "foo" });
+        },
+      };
+    });
+    const config = fromConfiguration({ extension: ext });
 
-      expect(combine.foo).toEqual(123);
-      expect(stateSpy).toHaveBeenCalledTimes(0);
-      expect(contextSpy).toHaveBeenCalledTimes(0);
+    const combine = config.asyncCombine(createStore(1), (_, context) => {
+      contextSpy(context);
+      return "";
+    });
+
+    expect(combine.foo).toEqual(123);
+    expect(stateSpy).toHaveBeenCalledTimes(0);
+    expect(contextSpy).toHaveBeenCalledTimes(0);
+
+    await allSettled(combine.trigger, { scope });
+
+    expect(stateSpy).toHaveBeenCalledTimes(2);
+    expect(stateSpy).nthCalledWith(1, createState({ isPending: true }));
+    expect(stateSpy).nthCalledWith(2, createState({ isReady: true, data: "" }));
+
+    expect(contextSpy).toHaveBeenCalledTimes(1);
+    expect(contextSpy).nthCalledWith(
+      1,
+      expect.objectContaining({ bar: "foo" }),
+    );
+
+    expect(paramsSpy).nthCalledWith(1, undefined);
+
+    await allSettled(trigger!, { scope, params: 123 });
+
+    expect(stateSpy).toHaveBeenCalledTimes(4);
+    expect(stateSpy).nthCalledWith(
+      3,
+      createState({ isPending: true, prevData: "", params: 123 }),
+    );
+    expect(stateSpy).nthCalledWith(4, createState({ isReady: true, data: "" }));
+
+    expect(contextSpy).toHaveBeenCalledTimes(2);
+    expect(contextSpy).nthCalledWith(
+      2,
+      expect.objectContaining({ bar: "foo" }),
+    );
+
+    expect(paramsSpy).nthCalledWith(2, 123);
+  });
+  describe("scope", () => {
+    it("func executes in correct scope", async () => {
+      const fx = createEffect<void, void>(async () => {});
+      const scope = fork();
+      const combine = asyncCombine(createStore(0), async () => {
+        await fx();
+        return 1;
+      });
+      const spy = vitest.fn();
+      createWatch({ scope, fn: spy, unit: fx });
 
       await allSettled(combine.trigger, { scope });
 
-      expect(stateSpy).toHaveBeenCalledTimes(2);
-      expect(stateSpy).nthCalledWith(1, createState({ isPending: true }));
-      expect(stateSpy).nthCalledWith(
-        2,
-        createState({ isReady: true, data: "" }),
-      );
-
-      expect(contextSpy).toHaveBeenCalledTimes(1);
-      expect(contextSpy).nthCalledWith(
-        1,
-        expect.objectContaining({ bar: "foo" }),
-      );
-
-      expect(paramsSpy).nthCalledWith(1, undefined);
-
-      await allSettled(trigger!, { scope, params: 123 });
-
-      expect(stateSpy).toHaveBeenCalledTimes(4);
-      expect(stateSpy).nthCalledWith(
-        3,
-        createState({ isPending: true, prevData: "", params: 123 }),
-      );
-      expect(stateSpy).nthCalledWith(
-        4,
-        createState({ isReady: true, data: "" }),
-      );
-
-      expect(contextSpy).toHaveBeenCalledTimes(2);
-      expect(contextSpy).nthCalledWith(
-        2,
-        expect.objectContaining({ bar: "foo" }),
-      );
-
-      expect(paramsSpy).nthCalledWith(2, 123);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
+    it("func executes in correct scope with extension", async () => {
+      const fx1 = createEffect<void, void>(async () => {});
+      const fx2 = createEffect<void, void>(async () => {});
+      const fx3 = createEffect<void, void>(async () => {});
+      const scope = fork();
+      const c = fromConfiguration({
+        extension: createExtension()(() => ({
+          handler: async (orig) => {
+            await fx3();
+            return orig();
+          },
+        })),
+      });
+      const ext = c.createExtension()(() => ({
+        handler: async (orig) => {
+          await fx2();
+          return orig();
+        },
+      }));
+      const combine = c.asyncCombine(
+        createStore(0),
+        ext(async () => {
+          await fx1();
+          return 1;
+        }),
+      );
+      const spy1 = vitest.fn();
+      const spy2 = vitest.fn();
+      const spy3 = vitest.fn();
+      createWatch({ scope, fn: spy1, unit: fx1 });
+      createWatch({ scope, fn: spy2, unit: fx2 });
+      createWatch({ scope, fn: spy3, unit: fx3 });
+
+      await allSettled(combine.trigger, { scope });
+
+      expect(spy1).toHaveBeenCalledTimes(1);
+      expect(spy2).toHaveBeenCalledTimes(1);
+      expect(spy3).toHaveBeenCalledTimes(1);
+    });
+    it("async functions in extension", async () => {
+      const fx1 = createEffect<void, void>(async () => {});
+      const fx2 = createEffect<void, void>(async () => {});
+      const scope = fork();
+      const c = fromConfiguration({
+        extension: createExtension()(() => ({
+          handler: async (orig) => {
+            await new Promise((res) => setTimeout(res));
+            return orig();
+          },
+        })),
+      });
+      const ext = c.createExtension()(() => ({
+        handler: async (orig) => {
+          await fx2();
+          return orig();
+        },
+      }));
+      const combine = c.asyncCombine(
+        createStore(0),
+        ext(async () => {
+          await fx1();
+          return 1;
+        }),
+      );
+      const spy1 = vitest.fn();
+      const spy2 = vitest.fn();
+      createWatch({ scope, fn: spy1, unit: fx1 });
+      createWatch({ scope, fn: spy2, unit: fx2 });
+
+      await allSettled(combine.trigger, { scope });
+
+      expect(spy1).toHaveBeenCalledTimes(1);
+      expect(spy2).toHaveBeenCalledTimes(1);
+    });
+  });
 });
