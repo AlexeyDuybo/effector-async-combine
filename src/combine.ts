@@ -28,7 +28,7 @@ import {
 import { isEqual } from "./lib/equal";
 
 class ResetError extends Error {}
-class AbortError extends Error {}
+export class AbortError extends Error {}
 class SkipError extends Error {}
 class CombineError extends Error {
   cause: unknown;
