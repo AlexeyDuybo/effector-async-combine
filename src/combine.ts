@@ -59,6 +59,7 @@ type StateKeys<S = NonNullable<CombineState<unknown>>> = S extends any
 export type CombineConfig<SourceValue = unknown> = {
   onError?: EventCallable<unknown> | Effect<unknown, any>;
   sourceUpdateFilter?: (prev: SourceValue, next: SourceValue) => boolean;
+  logError?: boolean
 };
 
 export type AsyncCombineCreator<
@@ -107,13 +108,14 @@ type ExtensionParams = {
 };
 
 type PrevSource = undefined | { prevSource: unknown };
+type PrevData = undefined | { prevData: unknown };
 
 type SourceStore = Store<
   undefined | (() => Promise<{ source: unknown }>) | { source: unknown }
 >;
 
 type ExecuterParams = {
-  prevData: unknown;
+  prevData: PrevData;
   currentState: CombineState<unknown>;
 
   checkSourceEquality: boolean;
@@ -157,6 +159,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   config = {},
   ...[configuredExt]: Extension<any, any, any, any, any>[]
 ) => {
+  const logError = config.logError ?? true;
   const sourceUpdateFilter = (config.sourceUpdateFilter ??
     sourceUpdateFilterDeep) as (prev: unknown, next: unknown) => boolean;
 
@@ -182,7 +185,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
         setState({
           isReady: false,
           isPending: true,
-          prevData,
+          prevData: prevData?.prevData,
           ...(currentState?.isError
             ? { isError: true, error: currentState.error }
             : { isError: false }),
@@ -239,7 +242,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
                   return await initedExtOrFunc.fn(
                     sourceValue,
                     baseContext,
-                    prevData,
+                    prevData?.prevData,
                   );
                 } else {
                   const { originalFn, configs } = initedExtOrFunc.ext;
@@ -249,7 +252,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
                   );
                   return await extensionFunc(
                     sourceValue,
-                    { ...baseContext, prevData },
+                    { ...baseContext, prevData: prevData?.prevData },
                     extension,
                   );
                 }
@@ -277,7 +280,17 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
             throw error;
           }
           if (error instanceof SkipError) {
-            setState(currentState);
+            setState(
+              // rollback to last ready state
+              prevData === undefined
+                ? undefined
+                : {
+                  isReady: true,
+                  isError: false,
+                  isPending: false,
+                  data: prevData.prevData
+                }
+            );
             throw error;
           }
           if (error instanceof AbortError) {
@@ -287,7 +300,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
           const combineError =
             error instanceof CombineError ? error : new CombineError(error);
 
-          if (!combineError.logged) {
+          if (!combineError.logged && logError) {
             console.error(combineError.cause);
             combineError.logged = true;
           }
@@ -296,7 +309,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
             isError: true,
             isPending: false,
             isReady: false,
-            prevData,
+            prevData: prevData?.prevData,
             error: combineError.cause,
           });
 
@@ -311,6 +324,9 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
       return promise;
     },
   );
+
+  const trigger = createEvent<{ _extension: ExtensionParams } | void>();
+  const changeData = createEvent<unknown>();
 
   const setStateAndPrevSource = createEvent<{
     state: CombineState<unknown>;
@@ -330,7 +346,13 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
     },
   })
     .on(setState, (_, state) => state)
-    .on(setStateAndPrevSource, (_, { state }) => state);
+    .on(setStateAndPrevSource, (_, { state }) => state)
+    .on(changeData, (_, data) => ({
+        isReady: true,
+        isError: false,
+        isPending: false,
+        data,
+    }))
 
   const setPromise = createEvent<() => Promise<unknown>>();
   const $promise = createStore<undefined | (() => Promise<unknown>)>(
@@ -338,7 +360,8 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
     { skipVoid: false },
   )
     .on(setPromise, (_, promise) => promise)
-    .on($state, (promise, state) => (state ? promise : undefined));
+    .on($state, (promise, state) => (state ? promise : undefined))
+    .on(changeData, (_, data) => async () => data)
 
   const $source = getSourceStore(sourceShape);
 
@@ -347,21 +370,26 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
     { skipVoid: false },
   )
     .on(setStateAndPrevSource, (_, { prevSource }) => ({ prevSource }))
-    .on($state, (params, state) => (state ? params : undefined));
+    .on($state, (params, state) => (state ? params : undefined))
+    .reset(changeData)
 
-  const $ctr = createStore(new AbortController()).on(
+  const $ctr = createStore(new AbortController())
+  .on(
     executerFx,
     (_, { newCtr }) => newCtr,
-  );
+  )
+  .on(changeData, (ctr) => {
+    ctr.abort();
+    return ctr;
+  })
 
-  const $prevData = $state.map(
-    (state) => {
-      return state?.isReady ? state.data : state?.prevData;
-    },
+  const $prevData = createStore<PrevData>(
+    undefined,
     { skipVoid: false },
-  );
-  const trigger = createEvent<{ _extension: ExtensionParams } | void>();
-  const changeData = createEvent<unknown>();
+  )
+    .on(changeData, (_, data) => ({ prevData: data }))
+    .on(setStateAndPrevSource, (_, { state }): PrevData => state?.isReady ? { prevData: state.data } : undefined)
+    .on($state, (prevData, state) => state ? prevData : undefined)
 
   const initedExtOrFunc = initExtensions(
     trigger,
@@ -400,28 +428,6 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
     target: executerFx,
   });
 
-  sample({
-    clock: changeData,
-    source: $ctr,
-    fn: (ctr, data): CombineState<unknown> => {
-      ctr.abort();
-      return {
-        isReady: true,
-        isError: false,
-        isPending: false,
-        data,
-      };
-    },
-    target: [
-      $state,
-      $prevSource.reinit,
-      setPromise.prepend(
-        (state: CombineState<unknown>) => () =>
-          Promise.resolve(state?.isReady && state.data),
-      ),
-    ],
-  });
-
   if (config.onError) {
     sample({
       clock: executerFx.failData,
@@ -436,12 +442,12 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   } = {
     ...(initedExtOrFunc.type === "ext" && initedExtOrFunc.ext.extend),
     $state,
-    $data: $prevData,
+    $data: $state.map((state) => state?.isReady ? state.data : state?.prevData, { skipVoid: false }),
     $isError: $state.map((state) => state?.isError || false),
     $isPending: $state.map((state) => state?.isPending || false),
 
     trigger: trigger as EventCallable<void>,
-    changeData,
+    changeData: changeData,
 
     [combineSymbol]: combineSymbol,
     // @ts-expect-error internal
