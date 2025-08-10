@@ -126,15 +126,15 @@ Problem solved, but:
 Now let's look at state-based approach with asyncCombine
 
 ```ts
-import { sample, createStore } from 'effector';
+import { asyncCombine } from 'effector-async-combine';
 import { userRoute } from '@/routes';
-import { User, loadUserFx } from '@/user';
+import { loadUserFx } from '@/user';
 
 const userAsync = asyncCombine(
     userRoute.params.map((params) => params?.userId),
     (userId) => {
         if (userId === undefined) throw undefined; // works like init and reset
-        return api.loadUser({ userId })
+        return loadUserFx({ userId })
     }
 );
 ```
