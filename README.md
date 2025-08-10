@@ -3,6 +3,21 @@
 This library provides combine functionality from Effector but for asynchronous functions.
 It allows describing asynchronous idempotent logic (such as data loading, heavy asynchronous computations, worker communications) by creating stores and their computed stores, instead of managing event flows. This results in more predictable, maintainable, and often shorter code.
 
+- [Install](#install)
+- [Comparison with Event-Based Approach](#comparison-with-event-based-approach)
+- [API](#api)
+  - [asyncCombine](#asynccombine)
+  - [createExtension](#createextension)
+  - [composeExtensions](#composeextensions)
+  - [fromConfiguration](#fromconfiguration)
+- [State](#state)
+- [Prev Data](#prev-data)
+- [Uninitialized State](#uninitialized-state)
+- [Concurrency](#concurrency)
+- [Source Batching](#source-batching)
+- [Extensions](#extensions)
+- [AsyncCombine Composition](#asynccombine-composition)
+- [Examples](#examples)
 ## Install
 
 ```bash
