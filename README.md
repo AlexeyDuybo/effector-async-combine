@@ -17,7 +17,7 @@ It allows describing asynchronous idempotent logic (such as data loading, heavy 
 - [Source Batching](#source-batching)
 - [Extensions](#extensions)
 - [AsyncCombine Composition](#asynccombine-composition)
-- [Examples](#examples)
+- [Examples](#complex-examples)
 ## Install
 
 ```bash
@@ -627,7 +627,7 @@ const normalizedDataAsync = asyncCombine(
 
 See [example](https://stackblitz.com/edit/react-vvzhfya5?file=src%2Fmodel.ts) with more complex composition
 
-## Examples
+## Complex examples
 - [Simple pagination](https://stackblitz.com/edit/react-ts-jte4j3bp?file=model.ts)
 - [Complex combine composition](https://stackblitz.com/edit/react-vvzhfya5?file=src%2Fmodel.ts)
 - [Extension for infinite scroll](https://stackblitz.com/edit/react-ts-zaaz6y4u?file=model.ts)
