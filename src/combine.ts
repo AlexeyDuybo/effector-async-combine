@@ -59,7 +59,7 @@ type StateKeys<S = NonNullable<CombineState<unknown>>> = S extends any
 export type CombineConfig<SourceValue = unknown> = {
   onError?: EventCallable<unknown> | Effect<unknown, any>;
   sourceUpdateFilter?: (prev: SourceValue, next: SourceValue) => boolean;
-  logError?: boolean
+  logError?: boolean;
 };
 
 export type AsyncCombineCreator<
@@ -285,11 +285,11 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
               prevData === undefined
                 ? undefined
                 : {
-                  isReady: true,
-                  isError: false,
-                  isPending: false,
-                  data: prevData.prevData
-                }
+                    isReady: true,
+                    isError: false,
+                    isPending: false,
+                    data: prevData.prevData,
+                  },
             );
             throw error;
           }
@@ -348,11 +348,11 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
     .on(setState, (_, state) => state)
     .on(setStateAndPrevSource, (_, { state }) => state)
     .on(changeData, (_, data) => ({
-        isReady: true,
-        isError: false,
-        isPending: false,
-        data,
-    }))
+      isReady: true,
+      isError: false,
+      isPending: false,
+      data,
+    }));
 
   const setPromise = createEvent<() => Promise<unknown>>();
   const $promise = createStore<undefined | (() => Promise<unknown>)>(
@@ -361,7 +361,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   )
     .on(setPromise, (_, promise) => promise)
     .on($state, (promise, state) => (state ? promise : undefined))
-    .on(changeData, (_, data) => async () => data)
+    .on(changeData, (_, data) => async () => data);
 
   const $source = getSourceStore(sourceShape);
 
@@ -371,25 +371,23 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   )
     .on(setStateAndPrevSource, (_, { prevSource }) => ({ prevSource }))
     .on($state, (params, state) => (state ? params : undefined))
-    .reset(changeData)
+    .reset(changeData);
 
   const $ctr = createStore(new AbortController())
-  .on(
-    executerFx,
-    (_, { newCtr }) => newCtr,
-  )
-  .on(changeData, (ctr) => {
-    ctr.abort();
-    return ctr;
-  })
+    .on(executerFx, (_, { newCtr }) => newCtr)
+    .on(changeData, (ctr) => {
+      ctr.abort();
+      return ctr;
+    });
 
-  const $prevData = createStore<PrevData>(
-    undefined,
-    { skipVoid: false },
-  )
+  const $prevData = createStore<PrevData>(undefined, { skipVoid: false })
     .on(changeData, (_, data) => ({ prevData: data }))
-    .on(setStateAndPrevSource, (_, { state }): PrevData => state?.isReady ? { prevData: state.data } : undefined)
-    .on($state, (prevData, state) => state ? prevData : undefined)
+    .on(
+      setStateAndPrevSource,
+      (_, { state }): PrevData =>
+        state?.isReady ? { prevData: state.data } : undefined,
+    )
+    .on($state, (prevData, state) => (state ? prevData : undefined));
 
   const initedExtOrFunc = initExtensions(
     trigger,
@@ -442,7 +440,10 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   } = {
     ...(initedExtOrFunc.type === "ext" && initedExtOrFunc.ext.extend),
     $state,
-    $data: $state.map((state) => state?.isReady ? state.data : state?.prevData, { skipVoid: false }),
+    $data: $state.map(
+      (state) => (state?.isReady ? state.data : state?.prevData),
+      { skipVoid: false },
+    ),
     $isError: $state.map((state) => state?.isError || false),
     $isPending: $state.map((state) => state?.isPending || false),
 
