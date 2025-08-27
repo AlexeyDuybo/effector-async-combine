@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import swc from '@vitejs/plugin-react-swc';
 
 export default defineConfig({
   build: {
@@ -13,7 +14,14 @@ export default defineConfig({
       external: ["effector"],
     },
   },
-  plugins: [dts({ rollupTypes: true })],
+  plugins: [
+    dts({ rollupTypes: true }),
+    swc({ 
+      plugins: [
+        ["@effector/swc-plugin", {}]
+      ] 
+    })
+  ],
   test: {
     testTimeout: 10000,
     globals: true,

@@ -32,6 +32,8 @@
   "license": "ISC",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
+    "@effector/swc-plugin": "^0.8.0",
+    "@vitejs/plugin-react-swc": "^4.0.1",
     "effector": "^23.4.2",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
