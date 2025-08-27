@@ -7,8 +7,8 @@ import {
   EventCallable,
   is,
   sample,
-  StoreValue,
   Store,
+  StoreValue,
 } from "effector";
 
 import {
@@ -17,6 +17,7 @@ import {
   ExtensionConfig,
   ExtensionResult,
 } from "./extension";
+import { isEqual } from "./lib/equal";
 import {
   AsyncCombine,
   CombineFunc,
@@ -25,7 +26,6 @@ import {
   GetSourceValue,
   SourceShape,
 } from "./types";
-import { isEqual } from "./lib/equal";
 
 class ResetError extends Error {}
 export class AbortError extends Error {}
@@ -357,7 +357,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   const setPromise = createEvent<() => Promise<unknown>>();
   const $promise = createStore<undefined | (() => Promise<unknown>)>(
     undefined,
-    { skipVoid: false },
+    { skipVoid: false, serialize: "ignore" },
   )
     .on(setPromise, (_, promise) => promise)
     .on($state, (promise, state) => (state ? promise : undefined))
@@ -373,7 +373,9 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
     .on($state, (params, state) => (state ? params : undefined))
     .reset(changeData);
 
-  const $ctr = createStore(new AbortController())
+  const $ctr = createStore(new AbortController(), {
+    serialize: "ignore",
+  })
     .on(executerFx, (_, { newCtr }) => newCtr)
     .on(changeData, (ctr) => {
       ctr.abort();
