@@ -153,6 +153,7 @@ const runInternalFx = createEffect(
 const runFx = <T>(ctr: AbortController, promise: Promise<T>): Promise<T> =>
   runInternalFx({ ctr, promise });
 
+let call = 0;
 const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
   sourceShape,
   fnOrExt,
@@ -177,6 +178,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
 
       extension,
     }: ExecuterParams) => {
+      const currentCall = call++;
       prevCtr.abort();
       let loadingSet = false;
       const setLoading = () => {
@@ -191,7 +193,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
             : { isError: false }),
         });
       };
-
+      console.log('start', currentCall);
       const promise = (async () => {
         try {
           await runFx(newCtr, Promise.resolve());
@@ -318,6 +320,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
           newCtr.abort();
         }
       })();
+      console.log('end', currentCall);
 
       setPromise(() => promise);
 

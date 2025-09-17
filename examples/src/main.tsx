@@ -1,4 +1,8 @@
-import { createRoot } from "react-dom/client";
-import { App } from "./App.tsx";
+import { createEvent } from 'effector';
+import { formModelFactory } from './bug';
 
-createRoot(document.getElementById("root")!).render(<App />);
+const init = createEvent<{ description: string }>();
+
+formModelFactory(init);
+
+init({ description: '42' });
