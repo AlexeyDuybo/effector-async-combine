@@ -192,7 +192,18 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
         });
       };
 
-      const promise = (async () => {
+      let resolve: (param: any) => any;
+      let reject: () => any;
+      const promise = new Promise(
+        (res, rej) => {
+          resolve = res;
+          reject = rej;
+        }
+      );
+
+      setPromise(() => promise);
+
+      (async () => {
         try {
           await runFx(newCtr, Promise.resolve());
 
@@ -317,9 +328,7 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
         } finally {
           newCtr.abort();
         }
-      })();
-
-      setPromise(() => promise);
+      })().then(resolve!, reject!)
 
       return promise;
     },
