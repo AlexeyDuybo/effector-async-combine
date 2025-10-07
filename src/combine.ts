@@ -1,4 +1,5 @@
 import {
+  attach,
   combine,
   createEffect,
   createEvent,
@@ -29,7 +30,6 @@ import {
 
 class ResetError extends Error {}
 export class AbortError extends Error {}
-class SkipError extends Error {}
 class CombineError extends Error {
   cause: unknown;
 
@@ -235,7 +235,26 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
             prevSource !== undefined &&
             !sourceUpdateFilter(prevSource.prevSource, sourceValue)
           ) {
-            throw new SkipError();
+            const currentState = await getCurrentState();
+
+            // rollback to previos valid state
+            // TODO: need to roolback to prev error state too!
+            if (currentState?.isPending) {
+              const prevData = currentState.prevData;
+              setState({
+                isReady: true,
+                data: prevData,
+                isError: false,
+                isPending: false
+              });
+              return prevData;
+            }
+
+            if (currentState?.isError) {
+              throw currentState.error;
+            }
+            
+            return currentState?.data;
           }
 
           const baseContext: ContextShape = {
@@ -288,20 +307,6 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
         } catch (error) {
           if (error instanceof ResetError) {
             setState(undefined);
-            throw error;
-          }
-          if (error instanceof SkipError) {
-            setState(
-              // rollback to last ready state
-              prevData === undefined
-                ? undefined
-                : {
-                    isReady: true,
-                    isError: false,
-                    isPending: false,
-                    data: prevData.prevData,
-                  },
-            );
             throw error;
           }
           if (error instanceof AbortError) {
@@ -362,6 +367,11 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
       isPending: false,
       data,
     }));
+
+  const getCurrentState = attach({
+    source: $state,
+    effect: (state) => state
+  });
 
   const setPromise = createEvent<() => Promise<unknown>>();
   const $promise = createStore<undefined | (() => Promise<unknown>)>(

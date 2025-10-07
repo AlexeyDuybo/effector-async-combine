@@ -2383,4 +2383,88 @@ describe("asyncCombine", () => {
       expect(spy2).toHaveBeenCalledTimes(1);
     });
   });
+  it('fn execution skip with same store value in source', async () => {
+    const scope = fork();
+    const $source = createStore<unknown>({});
+
+    const fn = vitest.fn(() => 42);
+    const async2 = asyncCombine(
+      $source,
+      fn
+    );
+
+    await allSettled($source, { scope, params: {} });
+    await allSettled($source, { scope, params: {} });
+
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(scope.getState(async2.$state)).toEqual(createState({ isReady: true, data: 42 }))
+  })
+  it('fn execution skip with same async combine value in source', async () => {
+    const scope = fork();
+    const async1 = asyncCombine(
+      {},
+      async () => {
+        return 42;
+      }
+    )
+    const fn = vitest.fn(() => 43);
+    const async2 = asyncCombine(
+      async1,
+      fn
+    );
+
+    await allSettled(async1.trigger, { scope });
+    await allSettled(async1.trigger, { scope });
+
+    expect(scope.getState(async2.$state)).toEqual(createState({ isReady: true, data: 43 }))
+  })
+  it('correct state rollback when changed source equal to prev', async () => {
+    const scope = fork();
+    const asyncPromise1 = Promise.withResolvers();
+    const async1 = asyncCombine(
+      {},
+      () => {
+        return asyncPromise1.promise
+      }
+    );
+    const async2Source = createStore<unknown>('');
+    const async2 = asyncCombine(
+      async2Source,
+      () => {
+        return 42
+      }
+    );
+
+    const async3 = asyncCombine(
+      { async1, async2 },
+      ({ async2 }) => {
+        return async2
+      }
+    );
+    const duplicateSourceValue = {};
+
+    allSettled(async1.trigger, { scope });
+    await sleep();
+    allSettled(async2Source, { scope, params: { ...duplicateSourceValue } });
+    await sleep();
+    await sleep();
+    await sleep();
+
+    expect(scope.getState(async1.$state)).toEqual(expect.objectContaining({ isPending: true }));
+    expect(scope.getState(async2.$state)).toEqual(expect.objectContaining({ isReady: true }));
+    expect(scope.getState(async3.$state)).toEqual(expect.objectContaining({ isPending: true }));
+
+    asyncPromise1.resolve('async1');
+    await sleep();
+    const pendingState = allSettled(async2Source, { scope, params: { ...duplicateSourceValue } });
+    await sleep();
+    await sleep();
+    await sleep();
+    await sleep();
+    await pendingState;
+
+    expect(scope.getState(async1.$state)).toEqual(createState({ isReady: true, data: 'async1' }));
+    expect(scope.getState(async2.$state)).toEqual(createState({ isReady: true, data: 42 }));
+    expect(scope.getState(async3.$state)).toEqual(createState({ isReady: true, data: 42 }));
+  })
 });
