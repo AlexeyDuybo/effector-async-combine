@@ -1,4 +1,5 @@
 import { EventCallable, Store } from "effector";
+import type { FC, ReactElement } from 'react';
 
 export type ContextShape<Source extends SourceShape = any> = {
   signal: AbortSignal;
@@ -65,6 +66,20 @@ export type CombineState<Data, Params = never> =
       error: unknown;
     };
 
+export type AsyncCombineSuspenseView<Data> = FC<{
+    initialPendingFallback?: ReactElement | null,
+    initialErrorFallback?: ReactElement | null,
+    children: (state: {
+      data: Data,
+      isPending: boolean,
+      isError: boolean,
+    }) => ReactElement | null
+}>;
+
+export type AsyncCombineView<Data> = FC<{
+    children: (state: Exclude<CombineState<Data>, undefined>) => ReactElement | null
+}>;
+
 export type AsyncCombine<Data> = {
   $state: Store<CombineState<Data>>;
   $data: Store<Data | undefined>;
@@ -72,6 +87,9 @@ export type AsyncCombine<Data> = {
   $isPending: Store<boolean>;
   changeData: EventCallable<Data>;
   trigger: EventCallable<void>;
+  
+  View: AsyncCombineView<Data>,
+  SuspenseView: AsyncCombineSuspenseView<Data>
 };
 
 export type CombineFunc<Source extends SourceShape, Data, Context> = (

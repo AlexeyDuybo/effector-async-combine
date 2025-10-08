@@ -11,7 +11,7 @@ import {
   Store,
   StoreValue,
 } from "effector";
-
+import { useUnit } from 'effector-react';
 import {
   createExtensionFunc,
   Extension,
@@ -21,12 +21,15 @@ import {
 import { isEqual } from "./lib/equal";
 import {
   AsyncCombine,
+  AsyncCombineSuspenseView,
+  AsyncCombineView,
   CombineFunc,
   CombineState,
   ContextShape,
   GetSourceValue,
   SourceShape,
 } from "./types";
+import { ComponentProps, memo } from "react";
 
 class ResetError extends Error {}
 export class AbortError extends Error {}
@@ -454,7 +457,36 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
       fn: (err) => err.cause,
       target: [config.onError] as const,
     });
-  }
+  };
+
+  function SuspenseView ({ children, initialErrorFallback, initialPendingFallback }: ComponentProps<AsyncCombineSuspenseView<unknown>>) {
+    const state = useUnit($state);
+    const prevData = useUnit($prevData);
+    if (state === undefined) {
+        return null;
+    };
+    if (state.isReady) {
+      return children({ data: state.data, isError: false, isPending: false })
+    };
+    if (prevData !== undefined) {
+      return children({ data: prevData.prevData, isError: state.isError, isPending: state.isPending })
+    };
+    if (state.isPending && initialPendingFallback) {
+      return initialPendingFallback
+    }
+    if (state.isError && initialErrorFallback) {
+      return initialErrorFallback
+    }
+    return null;
+  };
+
+  function View ({ children }: ComponentProps<AsyncCombineView<unknown>>) {
+    const state = useUnit($state);
+    if (state === undefined) {
+        return null;
+    };
+    return children(state)
+  };
 
   const combined: AsyncCombine<unknown> & {
     [combineSymbol]: typeof combineSymbol;
@@ -470,7 +502,8 @@ const asyncCombineInternal: AsyncCombineCreator<{}, {}, unknown> = (
 
     trigger: trigger as EventCallable<void>,
     changeData: changeData,
-
+    SuspenseView: memo(SuspenseView),
+    View: memo(View),
     [combineSymbol]: combineSymbol,
     // @ts-expect-error internal
     __: { $promise },

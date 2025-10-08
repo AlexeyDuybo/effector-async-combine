@@ -33,16 +33,20 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
     "@effector/swc-plugin": "^0.8.0",
+    "@types/react": "^18.3.26",
     "@vitejs/plugin-react-swc": "^4.0.1",
     "effector": "^23.4.2",
+    "effector-react": "^23.3.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
+    "react": "^18.3.1",
     "typescript": "^5.8.3",
     "vite": "^7.0.6",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "effector": ">=23"
+    "effector": ">=23",
+    "react": ">=18"
   }
 }

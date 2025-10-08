@@ -12,8 +12,9 @@ import {
   createExtension,
   composeExtensions,
   fromConfiguration,
-} from "./";
+} from ".";
 import { CombineState } from "./types";
+import { render } from '@testing-library/react';
 
 const sleepFx = createEffect(async () => null);
 const sleep = async () => {
@@ -34,7 +35,7 @@ const withResolvers = () => {
   };
 };
 
-const createState = <T>(
+const createState = <T,>(
   state: Partial<CombineState<T>> & { params?: unknown } = {},
 ): CombineState<T> => {
   if (state === undefined) return undefined;

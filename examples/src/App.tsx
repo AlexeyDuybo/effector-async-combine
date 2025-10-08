@@ -11,10 +11,14 @@ import { PaginationPage as PaginationComposition } from "./with-run-composition/
 import { InfiniteScrollExtansionPage as InfiniteScrollExtansionPageComposition } from "./with-run-composition/infinite-scroll-extension/ui";
 import { FormWithValidationPage as FormWithValidationPageComposition } from "./with-run-composition/form-with-validation/ui";
 
+import { PaginationPage as PaginationPageWithView } from "./with-view/pagination/ui";
+import { InfiniteScrollExtansionPage as InfiniteScrollExtansionPageWithView } from "./with-view/infinite-scroll-extension/ui";
+import { FormWithValidationPage as FormWithValidationPageWithView } from "./with-view/form-with-validation/ui";
+
 type Example =
   | "pagination"
   | "infinite-scroll-extension"
-  | "form-with-validation";
+  | "form-with-validation"
 
 export const App: FC = () => {
   const [openedExample, setOpenedExample] = useState<Example>(
@@ -22,25 +26,28 @@ export const App: FC = () => {
   );
 
   const [exampleType, setExampleType] = useState<
-    "default" | "withRun configured" | "withRun composed"
+    "default" | "withRun configured" | "withRun composed" | 'with View'
   >("default");
 
   const Pagination = {
     default: PaginationPage,
     "withRun configured": PaginationConfigured,
     "withRun composed": PaginationComposition,
+    "with View": PaginationPageWithView,
   }[exampleType];
 
   const InfiniteScrollExtansion = {
     default: InfiniteScrollExtansionPage,
     "withRun configured": InfiniteScrollExtansionPageConfigured,
     "withRun composed": InfiniteScrollExtansionPageComposition,
+    "with View": InfiniteScrollExtansionPageWithView,
   }[exampleType];
 
   const FormWithValidation = {
     default: FormWithValidationPage,
     "withRun configured": FormWithValidationPageConfigured,
     "withRun composed": FormWithValidationPageComposition,
+    "with View": FormWithValidationPageWithView,
   }[exampleType];
 
   return (
@@ -64,6 +71,7 @@ export const App: FC = () => {
           <option>default</option>
           <option>withRun configured</option>
           <option>withRun composed</option>
+          <option>with View</option>
         </select>
       </div>
       {openedExample === "pagination" && (
