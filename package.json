@@ -47,6 +47,7 @@
   },
   "peerDependencies": {
     "effector": ">=23",
-    "react": ">=18"
+    "react": ">=18",
+    "effector-react": ">=23"
   }
 }

@@ -11,7 +11,7 @@ export default defineConfig({
       formats: ["es", "cjs"],
     },
     rollupOptions: {
-      external: ["effector"],
+      external: ["effector", 'react', 'effector-react'],
     },
   },
   plugins: [
