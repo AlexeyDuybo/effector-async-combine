@@ -14,7 +14,6 @@ import {
   fromConfiguration,
 } from ".";
 import { CombineState } from "./types";
-import { render } from '@testing-library/react';
 
 const sleepFx = createEffect(async () => null);
 const sleep = async () => {
